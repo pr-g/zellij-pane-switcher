@@ -46,6 +46,8 @@ to a new tab, then uses the query as the default pane's title.
   `ModeInfo.style.colors`.
 - Full-width theme-selected row background while preserving icon and match
   colors.
+- Mouse hover adds a softer full-width row background without changing the
+  keyboard selection; the stronger selected-row style wins when both apply.
 - Best-scoring result selected whenever the query changes; clearing a
   non-whitespace query returns to the focused pane, while manual selection
   remains stable across unrelated Zellij data updates.
@@ -59,6 +61,8 @@ to a new tab, then uses the query as the default pane's title.
   rendering, and spinner frames do not rebuild search results.
 - Click any visible pane row to focus it immediately; the mouse wheel moves
   the selection through the filtered list.
+- Hovering a row previews it visually but never changes the Enter or click
+  target.
 
 ## Default row
 
@@ -119,8 +123,9 @@ theme colors are `default`, `gray`, `green`, `cyan`, `magenta`, `orange`,
 `blue`, `red`, `yellow`, `dark-gray`, and `border`. Invalid colors fall back to
 the built-in colors independently.
 
-Search matches override the field base color with bold yellow. The selected
-row background is layered underneath all field and match colors.
+Search matches override the field base color with bold yellow. Hovered rows use
+a softer background and selected rows use the stronger selection background;
+both retain field and match colors, with selection taking priority.
 
 `{dir}` uses path components, not string prefixes:
 
@@ -272,6 +277,7 @@ are not registered by this plugin.
 | Enter                       | Focus the selected pane       |
 | `Ctrl+Enter`                | Create a tab and rename its pane with the query |
 | Left-click a pane row       | Focus that pane and close     |
+| Hover a pane row            | Show the softer hover background |
 | Mouse wheel up / down       | Select previous / next row    |
 | Esc                         | Close without navigation      |
 | Left / Right                | No action                     |

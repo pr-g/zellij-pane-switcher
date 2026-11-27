@@ -24,13 +24,15 @@ It is not a permanent sidebar and does not render a session/tab tree.
    the flat result list.
 5. A left click on a visible pane row selects and focuses that pane, closing
    the HUD and switching sessions when necessary.
-6. Left/Right are ignored.
-7. Enter focuses the selected pane, closes the HUD, and switches sessions when
+6. Hovering a row highlights its complete width with a softer background. Hover
+   is visual feedback only and does not move the keyboard selection.
+7. Left/Right are ignored.
+8. Enter focuses the selected pane, closes the HUD, and switches sessions when
    necessary.
-8. With a non-blank query, `Ctrl+Enter` creates and switches to a new tab,
+9. With a non-blank query, `Ctrl+Enter` creates and switches to a new tab,
    renames its default pane to the query, and closes the HUD. The input line
    shows this action as a muted, right-aligned hint before `Esc`.
-9. Esc closes without navigation.
+10. Esc closes without navigation.
 
 Control characters from pasted query text render as spaces and are normalized
 out of the generated pane title so terminal output and pane names remain
@@ -228,8 +230,12 @@ Every progress and command-category glyph occupies exactly one terminal display
 column in both Nerd and plain modes, so text fields stay vertically aligned.
 
 The selected row uses the active Zellij `text_selected` background across its
-complete terminal width. Icon foregrounds and bold-yellow match highlights
-remain visible on that background.
+complete terminal width. A hovered row uses a softer background derived by
+mixing one third of that selected background into the normal text background.
+This produces a visible row tint without competing with selection. If the theme
+uses the same normal and selected background, the hover tint is derived from the
+normal foreground instead. The selected style wins when a row is both selected
+and hovered. Icon foregrounds and bold-yellow match highlights remain visible.
 
 After permissions are granted, the plugin renames its own plugin pane to
 `pane-switcher`, avoiding a long URL or local WASM path in the pane frame.
@@ -244,6 +250,8 @@ The palette is not hard-coded after startup. The plugin subscribes to
 - blue/yellow: the theme's multiplayer blue and yellow slots;
 - errors: `exit_code_error.base`;
 - selected foreground/background: `text_selected`;
+- hover background: one-third `text_selected.background` mixed into
+  `text_unselected.background`;
 - frame: `frame_selected.base`.
 
 Missing optional theme colors fall back to the normal text color so idle
@@ -270,6 +278,7 @@ struct StyledSpan {
     text: String,
     foreground: ForegroundColor,
     selected_background: bool,
+    hover_background: bool,
     bold: bool,
 }
 ```
@@ -282,9 +291,10 @@ Width rules:
 - every row is padded to the exact inner width;
 - the search line keeps a width-safe query tail and cursor position.
 
-Template fields retain their semantic colors while selected. ANSI styling is
-applied only to visible rows, so field coloration does not rebuild rows or
-search state.
+Template fields retain their semantic colors while selected or hovered. Hover
+is stored as a viewport-relative line slot, so scrolling maps it to the row
+currently under the pointer. ANSI styling is applied only to visible rows, so
+field coloration does not rebuild rows or search state.
 
 The selected viewport starts at `selected + 1 - visible_rows` rather than
 walking all prior rows. A 10,000-row regression verifies bounded rendering.
@@ -435,6 +445,7 @@ Automated coverage includes:
 - template-scoped matching;
 - progress/category color semantics;
 - semantic field colors and selected-row layering;
+- hover and selected-row background layering;
 - match and selected-row styling layers;
 - Unicode width safety;
 - viewport bounds at 10,000 rows;

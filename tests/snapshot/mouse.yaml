@@ -122,3 +122,5 @@ steps:
       }
   - action: event_json
     json: '{"Mouse":{"ScrollDown":1}}'
+  - action: event_json
+    json: '{"Mouse":{"Hover":[4,20]}}'

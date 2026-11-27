@@ -23,6 +23,7 @@ const MIN_SEARCH_QUERY_WIDTH: usize = 8;
 pub struct RenderOptions {
     pub color: bool,
     pub palette: ThemePalette,
+    pub hovered_slot: Option<usize>,
 }
 
 impl Default for RenderOptions {
@@ -30,6 +31,7 @@ impl Default for RenderOptions {
         Self {
             color: true,
             palette: ThemePalette::default(),
+            hovered_slot: None,
         }
     }
 }
@@ -69,17 +71,30 @@ pub fn render_frame(
         .unwrap_or(0)
         .min(rows.rows.len());
     let end = start.saturating_add(row_height).min(rows.rows.len());
+    let hovered_index = options
+        .hovered_slot
+        .filter(|slot| *slot < row_height)
+        .and_then(|slot| start.checked_add(slot))
+        .filter(|index| *index < end && selected_index != Some(*index));
     for (index, row) in rows.rows[start..end].iter().enumerate() {
         let absolute_index = start + index;
         let spans = row_spans(row, config, spinner_tick);
         lines.push(render_spans(
-            fitted_spans(spans, cols, selected_index == Some(absolute_index)),
+            fitted_spans(
+                spans,
+                cols,
+                selected_index == Some(absolute_index),
+                hovered_index == Some(absolute_index),
+            ),
             options,
         ));
     }
 
     while lines.len() < height.saturating_sub(1) {
-        lines.push(render_spans(fitted_spans(Vec::new(), cols, false), options));
+        lines.push(render_spans(
+            fitted_spans(Vec::new(), cols, false, false),
+            options,
+        ));
     }
     lines.push(render_text_line(
         fitted_text(
@@ -311,7 +326,11 @@ fn push_span(spans: &mut Vec<StyledSpan>, text: String, foreground: ForegroundCo
         return;
     }
     if let Some(last) = spans.last_mut() {
-        if last.foreground == foreground && last.bold == bold && !last.selected_background {
+        if last.foreground == foreground
+            && last.bold == bold
+            && !last.selected_background
+            && !last.hover_background
+        {
             last.text.push_str(&text);
             return;
         }
@@ -320,11 +339,17 @@ fn push_span(spans: &mut Vec<StyledSpan>, text: String, foreground: ForegroundCo
         text,
         foreground,
         selected_background: false,
+        hover_background: false,
         bold,
     });
 }
 
-fn fitted_spans(spans: Vec<StyledSpan>, cols: usize, selected: bool) -> Vec<StyledSpan> {
+fn fitted_spans(
+    spans: Vec<StyledSpan>,
+    cols: usize,
+    selected: bool,
+    hovered: bool,
+) -> Vec<StyledSpan> {
     if cols == 0 {
         return Vec::new();
     }
@@ -332,6 +357,8 @@ fn fitted_spans(spans: Vec<StyledSpan>, cols: usize, selected: bool) -> Vec<Styl
     fitted = pad_spans(fitted, cols);
     if selected {
         set_selected_background(&mut fitted);
+    } else if hovered {
+        set_hover_background(&mut fitted);
     }
     fitted
 }
@@ -342,8 +369,14 @@ fn set_selected_background(spans: &mut [StyledSpan]) {
     }
 }
 
+fn set_hover_background(spans: &mut [StyledSpan]) {
+    for span in spans {
+        span.hover_background = true;
+    }
+}
+
 fn fitted_text(text: &str, cols: usize, foreground: ForegroundColor) -> Vec<StyledSpan> {
-    fitted_spans(vec![StyledSpan::new(text, foreground)], cols, false)
+    fitted_spans(vec![StyledSpan::new(text, foreground)], cols, false, false)
 }
 
 fn search_line(cols: usize, query: &str) -> (Vec<StyledSpan>, Option<(usize, usize)>) {

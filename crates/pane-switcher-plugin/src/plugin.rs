@@ -87,6 +87,7 @@ pub struct PaneSwitcherPlugin {
     theme: ThemePalette,
     viewport_start: usize,
     viewport_end: usize,
+    hovered_slot: Option<usize>,
     floating_size_applied: bool,
 }
 
@@ -262,6 +263,7 @@ impl ZellijPlugin for PaneSwitcherPlugin {
             RenderOptions {
                 color: true,
                 palette: self.theme,
+                hovered_slot: self.hovered_slot,
             },
         );
         if self.should_report_cursor(frame.cursor) {
@@ -344,6 +346,11 @@ impl PaneSwitcherPlugin {
             MouseIntent::Down => {
                 self.finder.selection_down();
                 true
+            }
+            MouseIntent::HoverSlot(slot) => {
+                let changed = self.hovered_slot != slot;
+                self.hovered_slot = slot;
+                changed
             }
             MouseIntent::Ignored => false,
         }
@@ -489,8 +496,8 @@ mod tests {
     use pane_switcher_core::config::Config;
     use pane_switcher_core::style::ColorSpec;
     use zellij_tile::prelude::{
-        BareKey, Event, KeyWithModifier, ModeInfo, PaletteColor, PaneId, PaneManifest, SessionInfo,
-        ZellijPlugin,
+        BareKey, Event, KeyWithModifier, ModeInfo, Mouse, PaletteColor, PaneId, PaneManifest,
+        SessionInfo, ZellijPlugin,
     };
 
     use super::{
@@ -773,6 +780,19 @@ mod tests {
 
         assert!(!plugin.on_key(KeyWithModifier::new(BareKey::Left)));
         assert!(!plugin.on_key(KeyWithModifier::new(BareKey::Right)));
+    }
+
+    #[test]
+    fn mouse_hover_tracks_the_visual_row_without_moving_selection() {
+        let mut plugin = PaneSwitcherPlugin::default();
+        assert!(plugin.on_mouse(Mouse::Hover(3, 10)));
+        assert_eq!(plugin.hovered_slot, Some(1));
+        assert_eq!(plugin.finder.selection().index(), 0);
+        assert!(!plugin.on_mouse(Mouse::Hover(3, 20)));
+
+        assert!(plugin.on_mouse(Mouse::Hover(1, 20)));
+        assert_eq!(plugin.hovered_slot, None);
+        assert_eq!(plugin.finder.selection().index(), 0);
     }
 
     #[test]

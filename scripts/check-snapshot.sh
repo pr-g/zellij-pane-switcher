@@ -85,6 +85,7 @@ grep -q "first row  zsh" "$mouse_plain"
 grep -q "second row  nvim notes.md" "$mouse_plain"
 grep -q "third row  bash" "$mouse_plain"
 grep -a -F -q $'\033[38;5;51;48;5;238msecond row' "$mouse"
+grep -a -F -q $'\033[38;5;51;48;2;22;22;22mthird row' "$mouse"
 
 grep -q "FIND  › 的输入" "$ime_plain"
 grep -q "的输入法测试" "$ime_plain"

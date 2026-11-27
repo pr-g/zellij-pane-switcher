@@ -37,6 +37,7 @@ pub struct ThemePalette {
     pub border: ColorSpec,
     pub selected_foreground: ColorSpec,
     pub selected_background: ColorSpec,
+    pub hover_background: ColorSpec,
 }
 
 impl Default for ThemePalette {
@@ -55,6 +56,7 @@ impl Default for ThemePalette {
             border: ColorSpec::Indexed(240),
             selected_foreground: ColorSpec::Indexed(252),
             selected_background: ColorSpec::Indexed(24),
+            hover_background: ColorSpec::Indexed(235),
         }
     }
 }
@@ -82,6 +84,7 @@ pub struct StyledSpan {
     pub text: String,
     pub foreground: ForegroundColor,
     pub selected_background: bool,
+    pub hover_background: bool,
     pub bold: bool,
 }
 
@@ -91,6 +94,7 @@ impl StyledSpan {
             text: text.into(),
             foreground,
             selected_background: false,
+            hover_background: false,
             bold: false,
         }
     }
@@ -166,8 +170,10 @@ pub fn spans_to_ansi(spans: &[StyledSpan], color: bool) -> String {
 
     let mut output = String::new();
     for span in spans {
-        let styled =
-            span.foreground != ForegroundColor::Default || span.selected_background || span.bold;
+        let styled = span.foreground != ForegroundColor::Default
+            || span.selected_background
+            || span.hover_background
+            || span.bold;
         if !styled {
             output.push_str(&span.text);
             continue;
@@ -186,6 +192,8 @@ pub fn spans_to_ansi(spans: &[StyledSpan], color: bool) -> String {
         output.push_str(&span.foreground.ansi_value().to_string());
         if span.selected_background {
             output.push_str(";48;5;24");
+        } else if span.hover_background {
+            output.push_str(";48;5;236");
         }
         output.push('m');
         output.push_str(&span.text);
@@ -220,8 +228,14 @@ pub fn spans_to_ansi_with_palette(
             ForegroundColor::Border => palette.border,
         };
         let has_foreground = foreground != ColorSpec::Default;
-        let has_background =
-            span.selected_background && palette.selected_background != ColorSpec::Default;
+        let background = if span.selected_background {
+            palette.selected_background
+        } else if span.hover_background {
+            palette.hover_background
+        } else {
+            ColorSpec::Default
+        };
+        let has_background = background != ColorSpec::Default;
         if !has_foreground && !has_background && !span.bold {
             output.push_str(&span.text);
             continue;
@@ -235,7 +249,7 @@ pub fn spans_to_ansi_with_palette(
             codes.push(foreground_sgr(foreground));
         }
         if has_background {
-            codes.push(background_sgr(palette.selected_background));
+            codes.push(background_sgr(background));
         }
         output.push_str("\u{1b}[");
         output.push_str(&codes.join(";"));
@@ -258,6 +272,7 @@ fn push_nonempty(output: &mut Vec<StyledSpan>, span: StyledSpan) {
         if let Some(last) = output.last_mut() {
             if last.foreground == span.foreground
                 && last.selected_background == span.selected_background
+                && last.hover_background == span.hover_background
                 && last.bold == span.bold
             {
                 last.text.push_str(&span.text);

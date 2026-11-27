@@ -52,6 +52,7 @@ pub enum InputIntent {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MouseIntent {
     ActivateRow(usize),
+    HoverSlot(Option<usize>),
     Up,
     Down,
     Ignored,
@@ -70,24 +71,24 @@ pub fn configured_floating_coordinates(config: &Config) -> Option<FloatingPaneCo
 
 pub fn mouse_intent(mouse: &Mouse, viewport_start: usize, viewport_end: usize) -> MouseIntent {
     match *mouse {
-        Mouse::LeftClick(line, _) => {
-            let Ok(line) = usize::try_from(line) else {
-                return MouseIntent::Ignored;
-            };
-            let Some(offset) = line.checked_sub(2) else {
-                return MouseIntent::Ignored;
-            };
-            let index = viewport_start.saturating_add(offset);
-            if index < viewport_end {
-                MouseIntent::ActivateRow(index)
-            } else {
-                MouseIntent::Ignored
-            }
-        }
+        Mouse::LeftClick(line, _) => visible_row(line, viewport_start, viewport_end)
+            .map_or(MouseIntent::Ignored, MouseIntent::ActivateRow),
+        Mouse::Hover(line, _) => MouseIntent::HoverSlot(visible_slot(line)),
         Mouse::ScrollUp(_) => MouseIntent::Up,
         Mouse::ScrollDown(_) => MouseIntent::Down,
         _ => MouseIntent::Ignored,
     }
+}
+
+fn visible_row(line: isize, viewport_start: usize, viewport_end: usize) -> Option<usize> {
+    let line = usize::try_from(line).ok()?;
+    let offset = line.checked_sub(2)?;
+    let index = viewport_start.saturating_add(offset);
+    (index < viewport_end).then_some(index)
+}
+
+fn visible_slot(line: isize) -> Option<usize> {
+    usize::try_from(line).ok()?.checked_sub(2)
 }
 
 pub fn key_intent(key: &KeyWithModifier) -> InputIntent {
@@ -203,7 +204,83 @@ pub fn theme_palette(style: &Style) -> ThemePalette {
         border: palette_color(colors.frame_selected.base),
         selected_foreground: palette_color(selected.base),
         selected_background: palette_color(selected.background),
+        hover_background: hover_background(&text, &selected),
     }
+}
+
+fn hover_background(
+    normal: &zellij_tile::prelude::StyleDeclaration,
+    selected: &zellij_tile::prelude::StyleDeclaration,
+) -> ColorSpec {
+    let normal_rgb = palette_rgb(normal.background);
+    let selected_rgb = palette_rgb(selected.background);
+    let mixed = blend_rgb(normal_rgb, selected_rgb, 1, 3);
+    if mixed != normal_rgb {
+        return ColorSpec::Rgb(mixed);
+    }
+
+    let foreground_fallback = blend_rgb(normal_rgb, palette_rgb(normal.base), 1, 8);
+    ColorSpec::Rgb(foreground_fallback)
+}
+
+fn blend_rgb(
+    base: (u8, u8, u8),
+    accent: (u8, u8, u8),
+    accent_weight: u32,
+    total_weight: u32,
+) -> (u8, u8, u8) {
+    let mix = |base: u8, accent: u8| {
+        let base = u32::from(base);
+        let accent = u32::from(accent);
+        ((base * (total_weight - accent_weight) + accent * accent_weight) / total_weight) as u8
+    };
+    (
+        mix(base.0, accent.0),
+        mix(base.1, accent.1),
+        mix(base.2, accent.2),
+    )
+}
+
+fn palette_rgb(color: PaletteColor) -> (u8, u8, u8) {
+    match color {
+        PaletteColor::Rgb(rgb) => rgb,
+        PaletteColor::EightBit(index) => indexed_rgb(index),
+    }
+}
+
+fn indexed_rgb(index: u8) -> (u8, u8, u8) {
+    const SYSTEM: [(u8, u8, u8); 16] = [
+        (0, 0, 0),
+        (128, 0, 0),
+        (0, 128, 0),
+        (128, 128, 0),
+        (0, 0, 128),
+        (128, 0, 128),
+        (0, 128, 128),
+        (192, 192, 192),
+        (128, 128, 128),
+        (255, 0, 0),
+        (0, 255, 0),
+        (255, 255, 0),
+        (0, 0, 255),
+        (255, 0, 255),
+        (0, 255, 255),
+        (255, 255, 255),
+    ];
+    if let Some(rgb) = SYSTEM.get(usize::from(index)) {
+        return *rgb;
+    }
+    if index < 232 {
+        let index = index - 16;
+        let channel = |value: u8| if value == 0 { 0 } else { 55 + value * 40 };
+        return (
+            channel(index / 36),
+            channel((index % 36) / 6),
+            channel(index % 6),
+        );
+    }
+    let gray = 8 + (index - 232) * 10;
+    (gray, gray, gray)
 }
 
 fn palette_color(color: PaletteColor) -> ColorSpec {

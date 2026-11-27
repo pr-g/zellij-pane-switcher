@@ -4,6 +4,7 @@ use pane_switcher_core::config::Config;
 use pane_switcher_core::model::{LivePane, NodeKey};
 use pane_switcher_core::render::{render_frame, RenderOptions};
 use pane_switcher_core::rows::{FieldMatches, ProgressState, Row, Rows};
+use pane_switcher_core::style::{ColorSpec, ThemePalette};
 use unicode_width::UnicodeWidthStr;
 
 fn row(id: u32, title: &str, dir: &str, command: &str) -> Row {
@@ -349,6 +350,100 @@ fn selected_rows_have_a_full_width_dark_background() {
     assert!(frame.lines[2].contains("38;5;51;48;5;24"));
     assert!(frame.lines[2].contains("38;5;201;48;5;24"));
     assert_line_widths(&frame.lines, 60);
+}
+
+#[test]
+fn hovered_rows_use_a_distinct_full_width_background() {
+    let rows = Rows {
+        rows: vec![
+            row(1, "selected", ".", "zsh"),
+            row(2, "hovered", ".", "zsh"),
+        ],
+    };
+    let frame = render_frame(
+        &rows,
+        Some(0),
+        60,
+        12,
+        "",
+        &Config::default(),
+        0,
+        RenderOptions {
+            palette: ThemePalette {
+                selected_background: ColorSpec::Rgb((40, 50, 60)),
+                hover_background: ColorSpec::Rgb((10, 20, 30)),
+                ..ThemePalette::default()
+            },
+            hovered_slot: Some(1),
+            ..RenderOptions::default()
+        },
+    );
+
+    assert!(frame.lines[2].contains("48;2;40;50;60"));
+    assert!(!frame.lines[2].contains("48;2;10;20;30"));
+    assert!(frame.lines[3].contains("48;2;10;20;30"));
+    assert!(!frame.lines[3].contains("48;2;40;50;60"));
+    assert_line_widths(&frame.lines, 60);
+}
+
+#[test]
+fn selected_row_background_takes_priority_over_hover() {
+    let rows = Rows {
+        rows: vec![row(1, "selected", ".", "zsh")],
+    };
+    let frame = render_frame(
+        &rows,
+        Some(0),
+        60,
+        12,
+        "",
+        &Config::default(),
+        0,
+        RenderOptions {
+            palette: ThemePalette {
+                selected_background: ColorSpec::Rgb((40, 50, 60)),
+                hover_background: ColorSpec::Rgb((10, 20, 30)),
+                ..ThemePalette::default()
+            },
+            hovered_slot: Some(0),
+            ..RenderOptions::default()
+        },
+    );
+
+    assert!(frame.lines[2].contains("48;2;40;50;60"));
+    assert!(!frame.lines[2].contains("48;2;10;20;30"));
+}
+
+#[test]
+fn hover_slot_tracks_the_row_under_the_pointer_when_the_viewport_moves() {
+    let rows = Rows {
+        rows: (1..=20)
+            .map(|id| row(id, &format!("pane-{id}"), ".", "zsh"))
+            .collect(),
+    };
+    let frame = render_frame(
+        &rows,
+        Some(10),
+        60,
+        6,
+        "",
+        &Config::default(),
+        0,
+        RenderOptions {
+            palette: ThemePalette {
+                selected_background: ColorSpec::Rgb((40, 50, 60)),
+                hover_background: ColorSpec::Rgb((10, 20, 30)),
+                ..ThemePalette::default()
+            },
+            hovered_slot: Some(0),
+            ..RenderOptions::default()
+        },
+    );
+
+    assert!(frame.lines[2].contains("pane-9"));
+    assert!(frame.lines[2].contains("48;2;10;20;30"));
+    assert!(frame.lines[4].contains("pane-11"));
+    assert!(frame.lines[4].contains("48;2;40;50;60"));
 }
 
 #[test]

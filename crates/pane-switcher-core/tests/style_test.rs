@@ -8,6 +8,7 @@ fn span(text: &str, foreground: ForegroundColor) -> StyledSpan {
         text: text.into(),
         foreground,
         selected_background: false,
+        hover_background: false,
         bold: false,
     }
 }
@@ -34,6 +35,7 @@ fn ansi_combines_foreground_bold_and_selected_background() {
         text: "hit".into(),
         foreground: ForegroundColor::Yellow,
         selected_background: true,
+        hover_background: false,
         bold: true,
     }];
 
@@ -49,6 +51,7 @@ fn colorless_output_contains_only_visible_text() {
         text: "plain".into(),
         foreground: ForegroundColor::Green,
         selected_background: true,
+        hover_background: false,
         bold: true,
     }];
 
@@ -71,6 +74,7 @@ fn themed_ansi_uses_zellij_rgb_foreground_and_selection_background() {
         text: "hit".into(),
         foreground: ForegroundColor::Yellow,
         selected_background: true,
+        hover_background: false,
         bold: true,
     }];
     let palette = ThemePalette {
@@ -82,5 +86,27 @@ fn themed_ansi_uses_zellij_rgb_foreground_and_selection_background() {
     assert_eq!(
         spans_to_ansi_with_palette(&spans, true, &palette),
         "\u{1b}[1;38;2;224;175;104;48;2;26;27;38mhit\u{1b}[0m"
+    );
+}
+
+#[test]
+fn themed_hover_background_is_independent_from_selection_background() {
+    let spans = vec![StyledSpan {
+        text: "hover".into(),
+        foreground: ForegroundColor::Cyan,
+        selected_background: false,
+        hover_background: true,
+        bold: false,
+    }];
+    let palette = ThemePalette {
+        cyan: ColorSpec::Rgb((1, 2, 3)),
+        selected_background: ColorSpec::Rgb((7, 8, 9)),
+        hover_background: ColorSpec::Rgb((4, 5, 6)),
+        ..ThemePalette::default()
+    };
+
+    assert_eq!(
+        spans_to_ansi_with_palette(&spans, true, &palette),
+        "\u{1b}[38;2;1;2;3;48;2;4;5;6mhover\u{1b}[0m"
     );
 }

@@ -293,6 +293,22 @@ fn mouse_clicks_map_content_lines_to_visible_rows() {
 }
 
 #[test]
+fn mouse_hover_maps_content_lines_to_viewport_slots() {
+    assert_eq!(
+        mouse_intent(&Mouse::Hover(2, 10), 5, 8),
+        MouseIntent::HoverSlot(Some(0))
+    );
+    assert_eq!(
+        mouse_intent(&Mouse::Hover(4, 10), 5, 8),
+        MouseIntent::HoverSlot(Some(2))
+    );
+    assert_eq!(
+        mouse_intent(&Mouse::Hover(1, 10), 5, 8),
+        MouseIntent::HoverSlot(None)
+    );
+}
+
+#[test]
 fn mouse_wheel_moves_selection_up_and_down() {
     assert_eq!(mouse_intent(&Mouse::ScrollUp(1), 0, 0), MouseIntent::Up);
     assert_eq!(mouse_intent(&Mouse::ScrollDown(1), 0, 0), MouseIntent::Down);
@@ -303,6 +319,7 @@ fn zellij_style_colors_map_to_pane_switcher_semantic_palette() {
     let mut style = Style::default();
     let colors = &mut style.colors;
     colors.text_unselected.base = PaletteColor::Rgb((192, 202, 245));
+    colors.text_unselected.background = PaletteColor::Rgb((8, 12, 16));
     colors.text_unselected.emphasis_0 = PaletteColor::Rgb((255, 158, 100));
     colors.text_unselected.emphasis_1 = PaletteColor::Rgb((125, 207, 255));
     colors.text_unselected.emphasis_2 = PaletteColor::Rgb((158, 206, 106));
@@ -333,6 +350,7 @@ fn zellij_style_colors_map_to_pane_switcher_semantic_palette() {
             border: ColorSpec::Rgb((158, 206, 106)),
             selected_foreground: ColorSpec::Rgb((200, 210, 250)),
             selected_background: ColorSpec::Rgb((26, 27, 38)),
+            hover_background: ColorSpec::Rgb((14, 17, 23)),
         }
     );
 }
@@ -347,4 +365,49 @@ fn missing_zellij_silver_does_not_make_idle_icons_black() {
 
     assert_eq!(palette.gray, ColorSpec::Rgb((192, 202, 245)));
     assert_eq!(palette.dark_gray, ColorSpec::Rgb((192, 202, 245)));
+}
+
+#[test]
+fn theme_palette_derives_a_softer_hover_background_from_theme_colors() {
+    let mut style = Style::default();
+    style.colors.text_unselected.background = PaletteColor::Rgb((8, 12, 16));
+    style.colors.text_selected.background = PaletteColor::Rgb((56, 72, 96));
+
+    let palette = theme_palette(&style);
+
+    assert_eq!(palette.hover_background, ColorSpec::Rgb((24, 32, 42)));
+}
+
+#[test]
+fn theme_palette_blends_indexed_backgrounds_as_rgb() {
+    let mut style = Style::default();
+    style.colors.text_unselected.background = PaletteColor::EightBit(0);
+    style.colors.text_selected.background = PaletteColor::EightBit(238);
+
+    let palette = theme_palette(&style);
+
+    assert_eq!(palette.hover_background, ColorSpec::Rgb((22, 22, 22)));
+}
+
+#[test]
+fn theme_palette_expands_indexed_cube_colors_before_blending() {
+    let mut style = Style::default();
+    style.colors.text_unselected.background = PaletteColor::EightBit(16);
+    style.colors.text_selected.background = PaletteColor::EightBit(196);
+
+    let palette = theme_palette(&style);
+
+    assert_eq!(palette.hover_background, ColorSpec::Rgb((85, 0, 0)));
+}
+
+#[test]
+fn theme_palette_derives_hover_when_selected_matches_normal_background() {
+    let mut style = Style::default();
+    style.colors.text_unselected.background = PaletteColor::Rgb((20, 20, 20));
+    style.colors.text_unselected.base = PaletteColor::Rgb((220, 220, 220));
+    style.colors.text_selected.background = PaletteColor::Rgb((20, 20, 20));
+
+    let palette = theme_palette(&style);
+
+    assert_eq!(palette.hover_background, ColorSpec::Rgb((45, 45, 45)));
 }

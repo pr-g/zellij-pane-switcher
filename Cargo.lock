@@ -1371,7 +1371,7 @@ checksum = "13c45bb4a6ae1280ec0803b1ef9d3455eb50f01efbbe1447ab020f1d54fba9d8"
 
 [[package]]
 name = "pane-switcher-core"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "kdl",
  "unicode-width 0.2.3",
@@ -1379,7 +1379,7 @@ dependencies = [
 
 [[package]]
 name = "pane-switcher-plugin"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "pane-switcher-core",
  "zellij-tile",
